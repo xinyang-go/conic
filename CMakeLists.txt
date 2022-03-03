@@ -11,7 +11,6 @@ find_package(Eigen3 3.3 REQUIRED)
 
 add_library(conic src/conic.cpp)
 target_include_directories(conic PUBLIC include ${EIGEN3_INCLUDE_DIR})
-target_link_libraries(conic ${CERES_LIBRARIES})
 
 option(BUILD_EXAMPLE "build example" ON)
 if(BUILD_EXAMPLE)
