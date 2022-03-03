@@ -1,14 +1,13 @@
 cmake_minimum_required(VERSION 3.16)
 project(conic)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=return-type")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto -march=native")
 
 find_package(Eigen3 3.3 REQUIRED)
-find_package(Ceres 2 REQUIRED)
 
 add_library(conic src/conic.cpp)
 target_include_directories(conic PUBLIC include ${EIGEN3_INCLUDE_DIR})

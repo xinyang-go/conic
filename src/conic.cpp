@@ -1,6 +1,5 @@
 #include "conic.hpp"
 #include <Eigen/Dense>
-#include <ceres/ceres.h>
 
 using namespace conic;
 
@@ -42,59 +41,35 @@ Matrix33 conic::fitEllipse(const CMap2N& pt) {
 
 Matrix33 conic::perspectiveFromEllipseAndCentre(
         double radius, const Matrix33& ellipse, const CMap21& centre) {
-    Matrix33 P0 = Matrix33::Identity();
-    P0(2, 2) = radius;
-
-    Eigen::EigenSolver<Matrix33> es(ellipse);
-    Matrix33 val = es.pseudoEigenvalueMatrix();
-    Matrix33 vec = es.pseudoEigenvectors();
-    int minIndex;
-    val.colwise().sum().minCoeff(&minIndex);
-    int index[3] = {0, 1, 2};
-    std::swap(index[minIndex], index[2]);
-
-    Matrix33 P1;
-    P1.col(0) = vec.col(index[0]) * sqrt(val(index[0], index[0]));
-    P1.col(1) = vec.col(index[1]) * sqrt(val(index[1], index[1]));
-    P1.col(2) = vec.col(index[2]) * sqrt(-val(index[2], index[2]));
-
-    Matrix31 X0 = Matrix31::Zero();
-    X0[2] = 1;
-    X0 = P0.transpose() * X0;
-
-    Matrix31 X1{centre[0], centre[1], 1.0};
-    X1 = P1.transpose() * X1;
-
-    Matrix33 I = Matrix33::Identity();
-    I(2, 2) = -1;
-
-    Matrix33 A = Matrix33::Identity();
-
-    auto func = [&]<typename T>(const T * const x, T* r) -> bool {
-        using MatrixT31 = Eigen::Matrix<T, 3, 1>;
-        using MatrixT33 = Eigen::Matrix<T, 3, 3>;
-
-        Eigen::Map<MatrixT33> A((T *) x);
-        Eigen::Map<MatrixT33> rE(r);
-        Eigen::Map<MatrixT31> rX(r + 9);
-
-        rE = I.cast<T>() - A * I.cast<T>() * A.transpose();
-        MatrixT31 X1_ = A.transpose() * X0;
-        X1_ *=  X1[2] / X1_[2];
-        rX = X1.cast<T>() - X1_;
-
-        return true;
-    };
-    auto *cost = new ceres::AutoDiffCostFunction<decltype(func), 12, 9>(
-        &func, ceres::DO_NOT_TAKE_OWNERSHIP);
-    ceres::Problem problem;
-    problem.AddResidualBlock(cost, nullptr, A.data());
-    ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_QR;
-    ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
+    using namespace std::complex_literals;
+    // 仿射矫正
+    Matrix31 x{centre[0], centre[1], 1};
+    Matrix31 l = ellipse * x;
+    Matrix33 Hp_inv = Matrix33::Identity();
+    Hp_inv.row(2) = l.transpose();
+    Matrix33 Hp = Hp_inv.inverse();
+    Matrix33 Ea = Hp.transpose() * ellipse * Hp;
+    // 度量矫正
+    std::complex<double> a = Ea(0, 0);
+    std::complex<double> b = 2i*Ea(0,1);
+    std::complex<double> c = -Ea(1,1);
+    std::complex<double> n = (-b+std::sqrt(b*b-4.0*a*c))/(2.0*a);
+    Matrix33 Ha = Matrix33::Identity();
+    Ha(0, 0) = n.real();
+    Ha(0, 1) = n.imag();
+    Matrix33 Et = Ha.transpose() * Ea * Ha;
+    // 平移矫正
+    Matrix33 Ht = Matrix33::Identity();
+    Ht(0, 2) = -Et(0, 2) / Et(0, 0);
+    Ht(1, 2) = -Et(1, 2) / Et(1, 1);
+    Matrix33 Es = Ht.transpose() * Et * Ht;
+    // 缩放矫正
+    Matrix33 Hs = Matrix33::Identity();
+    Hs(0, 0) = Hs(1, 1) = sqrt(-Es(2, 2) / Es(0, 0) / radius / radius);
+    // 合并透视变换矩阵
+    Matrix33 H = Hp * Ha * Ht * Hs;
     
-    return P1.inverse().transpose() * A.transpose() * P0.transpose();
+    return H;
 }
 
 Matrix34 conic::poseFromPerspective(const Matrix33& H) {
