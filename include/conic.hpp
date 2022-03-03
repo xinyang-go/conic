@@ -33,23 +33,23 @@ namespace conic {
     using Map66 = Eigen::Map<Matrix66>;
     using Map6N = Eigen::Map<Matrix6N>;
     
-    using CMap21 = Eigen::Map<const Matrix21>;
-    using CMap2N = Eigen::Map<const Matrix2N>;
-    using CMap31 = Eigen::Map<const Matrix31>;
-    using CMap33 = Eigen::Map<const Matrix33>;
-    using CMap34 = Eigen::Map<const Matrix34>;
-    using CMap41 = Eigen::Map<const Matrix41>;
-    using CMap44 = Eigen::Map<const Matrix44>;
-    using CMap61 = Eigen::Map<const Matrix61>;
-    using CMap66 = Eigen::Map<const Matrix66>;
-    using CMap6N = Eigen::Map<const Matrix6N>;
+    using ConstMap21 = Eigen::Map<const Matrix21>;
+    using ConstMap2N = Eigen::Map<const Matrix2N>;
+    using ConstMap31 = Eigen::Map<const Matrix31>;
+    using ConstMap33 = Eigen::Map<const Matrix33>;
+    using ConstMap34 = Eigen::Map<const Matrix34>;
+    using ConstMap41 = Eigen::Map<const Matrix41>;
+    using ConstMap44 = Eigen::Map<const Matrix44>;
+    using ConstMap61 = Eigen::Map<const Matrix61>;
+    using ConstMap66 = Eigen::Map<const Matrix66>;
+    using ConstMap6N = Eigen::Map<const Matrix6N>;
 
     /*
      * @brief  椭圆拟合
      * @param  pt 椭圆圆周采样坐标点
      * @return 二次型表示的椭圆参数，行列式被归一化为-1
      */
-    Matrix33 fitEllipse(const CMap2N& pt);
+    Matrix33 fitEllipse(ConstMap2N pt);
 
     /*
      * @brief   从椭圆方程和圆心坐标计算透视变换
@@ -60,7 +60,7 @@ namespace conic {
      * @return  从空间平面到归一化像素平面的透视变换矩阵
      */
     Matrix33 perspectiveFromEllipseAndCentre(
-            double radius, const Matrix33& ellipse, const CMap21& centre);
+            double radius, const Matrix33& ellipse, const Matrix21& centre);
 
     /*
      * @brief  从透视变换中恢复位姿
@@ -77,7 +77,7 @@ namespace conic {
      * @return 该点在相机坐标系下的坐标
      */
     Matrix31 pointCoordinateCamera(
-            const CMap21& pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c);
+            const Matrix21& pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c);
 
 }
 

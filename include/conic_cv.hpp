@@ -16,7 +16,7 @@ namespace conic {
      * @return 二次型表示的椭圆参数，行列式被归一化为-1
      */
     inline Matrix33 fitEllipse(const std::vector<cv::Point2d>& pt) {
-        return fitEllipse(CMap2N{(const double*)pt.data(), 2, (int)pt.size()});
+        return fitEllipse(ConstMap2N{(const double*)pt.data(), 2, (int)pt.size()});
     }
 
     /*
@@ -29,7 +29,7 @@ namespace conic {
      */
     inline Matrix33 perspectiveFromEllipseAndCentre(
             double radius, const Matrix33& ellipse, const cv::Point2d& centre) {
-        return perspectiveFromEllipseAndCentre(radius, ellipse, CMap21{(const double*)&centre});
+        return perspectiveFromEllipseAndCentre(radius, ellipse, Matrix21{centre.x, centre.y});
     }
 
     /*
@@ -41,7 +41,7 @@ namespace conic {
      */
     inline Matrix31 pointCoordinateCamera(
             const cv::Point2d& pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c) {
-        return pointCoordinateCamera(CMap21{(const double*)&pt}, H_c2w, T_w2c);
+        return pointCoordinateCamera(Matrix21{pt.x, pt.y}, H_c2w, T_w2c);
     }
 }
 

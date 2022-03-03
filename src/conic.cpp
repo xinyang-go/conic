@@ -3,7 +3,7 @@
 
 using namespace conic;
 
-Matrix33 conic::fitEllipse(const CMap2N& pt) {
+Matrix33 conic::fitEllipse(ConstMap2N pt) {
     Matrix6N D(6, pt.cols());
     D.row(0) = pt.row(0).array() * pt.row(0).array();
     D.row(1) = pt.row(0).array() * pt.row(1).array();
@@ -40,7 +40,7 @@ Matrix33 conic::fitEllipse(const CMap2N& pt) {
 }
 
 Matrix33 conic::perspectiveFromEllipseAndCentre(
-        double radius, const Matrix33& ellipse, const CMap21& centre) {
+        double radius, const Matrix33& ellipse, const Matrix21& centre) {
     using namespace std::complex_literals;
     // 仿射矫正
     Matrix31 x{centre[0], centre[1], 1};
@@ -83,7 +83,7 @@ Matrix34 conic::poseFromPerspective(const Matrix33& H) {
 }
 
 Matrix31 conic::pointCoordinateCamera(
-        const CMap21 &pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c) {
+        const Matrix21 &pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c) {
     Matrix31 pn{pt[0], pt[1], 0.};
     Matrix31 pw = H_c2w * pn;
     pw /= pw[2];
