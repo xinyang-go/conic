@@ -72,7 +72,8 @@ namespace conic {
     /*
      * @brief  计算归一化像素平面上一点所对应相机坐标系下的坐标
      * @param  pt    在归一化像素平面上的坐标
-     * @param  H_c2w 从空间平面到归一化像素平面的透视变换矩阵
+     * @param  H_c2w 归一化像素平面到空间平面的透视变换矩阵
+     *               (perspectiveFromEllipseAndCentre返回值的逆矩阵)
      * @param  T_w2c 空间平面坐标系到相机坐标系的位姿矩阵
      * @return 该点在相机坐标系下的坐标
      */
