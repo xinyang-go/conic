@@ -14,3 +14,10 @@
 ---
 
  依赖库：Eigen3.3
+
+---
+
+参考文献
+
+* Zdešar A, Škrjanc I, Klančar G. Homography estimation from circular motion for use in visual control[J]. Robotics and Autonomous Systems, 2014, 62(10): 1486-1496.
+* 《计算机视觉中的多视图几何》
