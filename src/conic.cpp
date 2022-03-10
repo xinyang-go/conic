@@ -74,11 +74,16 @@ Matrix33 conic::perspectiveFromEllipseAndCentre(
 
 Matrix34 conic::poseFromPerspective(const Matrix33& H) {
     Matrix34 T;
-    double n = (H.col(0).norm() + H.col(1).norm()) / 2;
-    T.col(0) = H.col(0) / H.col(0).norm();
-    T.col(1) = H.col(1) / H.col(1).norm();
-    T.col(2) = T.col(0).cross(T.col(1));
-    T.col(3) = H.col(2) / n;
+    double l = (H.col(0).norm() + H.col(1).norm()) / 2.0;
+    T.col(3) = H.col(2) / l;
+    T.col(2) = H.col(0).cross(H.col(1));
+    T.col(2) /= T.col(2).norm();
+    Matrix31 x = H.col(0) + H.col(1);
+    x /= x.norm();
+    Matrix31 y = x.cross(T.col(2));
+    const double sqrt2 = std::sqrt(2);
+    T.col(0) = (x + y) / sqrt2;
+    T.col(1) = (x - y) / sqrt2;
     return T;
 }
 
