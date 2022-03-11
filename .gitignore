@@ -7,4 +7,5 @@ build
 cmake-build-*
 
 # executable
-example/example
+example/example_static
+example/example_dynamic

@@ -15,8 +15,15 @@ target_include_directories(conic PUBLIC include ${EIGEN3_INCLUDE_DIR})
 option(BUILD_EXAMPLE "build example" ON)
 if(BUILD_EXAMPLE)
     find_package(OpenCV 4 REQUIRED)
-    add_executable(example example/example.cpp)
-    target_link_libraries(example conic ${OpenCV_LIBS})
-    set_target_properties(example PROPERTIES
+    find_package(Ceres 2 REQUIRED)
+
+    add_executable(example_static example/example_static.cpp)
+    target_link_libraries(example_static conic ${OpenCV_LIBS})
+    set_target_properties(example_static PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/example")
+            
+    add_executable(example_dynamic example/example_dynamic.cpp)
+    target_link_libraries(example_dynamic conic ${OpenCV_LIBS} ${CERES_LIBRARIES})
+    set_target_properties(example_dynamic PROPERTIES
             RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/example")
 endif()
