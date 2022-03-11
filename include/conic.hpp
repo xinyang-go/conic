@@ -23,6 +23,7 @@
                             using ConstMap##w##h##f = ConstMap##w##h<float>;     
 #define N   Eigen::Dynamic
 namespace conic {
+    DEFINE_MATRIX(1, N);
     DEFINE_MATRIX(2, 1);
     DEFINE_MATRIX(2, N);
     DEFINE_MATRIX(3, 1);

@@ -1,9 +1,13 @@
 #include <opencv2/opencv.hpp>
 #include "conic_cv.hpp"
+#include "conic_motion.hpp"
 #include <opencv2/core/eigen.hpp>
 #include <ceres/ceres.h>
+#include <thread>
+
 
 using namespace conic;
+using namespace conic::motion;
 
 /*
  * @brief 统计函数运行时间(ms)
@@ -35,101 +39,47 @@ void resizeShow(const char* name, cv::Mat img, double scale) {
 }
 
 /*
- * @brief   运动模型损失函数
- * @details 透视变换后的坐标和运动模型计算的坐标之间的残差
- *          theta = -a/w * cos(w*t) + b*t
+ * @brief   实现运动方程
+ * @details theta = -a/w * cos(w*t) + b*t
  *          0.780 < a < 1.045
  *          1.884 < w < 2.000
  *          b = 2.090 - a
  */
-struct CosineMotionCost {
-    /*
-     * @param var_h 透视变换矩阵的9个参数
-     * @param var_m 运动方程的2个参数
-     * 
-     */
-    template<typename T>
-    bool operator()(const T * const var_h,
-                    const T * const var_m,
-                    const T * const var_t,
-                    T * residual) const {
-        // 计算透视变换坐标
-        ConstMap33<T> H(var_h);
-        Matrix31<T> pt_w_h = H * pt_c;
-        pt_w_h /= pt_w_h[2];
-        // 计算运动模型坐标
-        const T &a = var_m[0];
-        const T &w = var_m[1];
-        const T b = 2.090 - a;
-        const T t = var_t[0] + timestamp;
-        const T theta = -a/w * ceres::cos(w*t) + b*t;
-        Matrix21<T> pt_w_m{radius * cos(theta), radius * sin(theta)};
-        // 计算残差
-        residual[0] = pt_w_m[0] - pt_w_h[0];
-        residual[1] = pt_w_m[1] - pt_w_h[1];
-        return true;
-    }
-
-    double radius, timestamp;
-    Matrix31<double> pt_c;
-
-
-    static void build_problem(ceres::Problem &problem, double r, double t, cv::Point2d p,
-                              double *var_h, double *var_m, double *var_t) {
-        auto cost = new ceres::AutoDiffCostFunction<CosineMotionCost, 2, 9, 2, 1>(
-            new CosineMotionCost{r, t, {p.x, p.y, 1.0}} );
-        problem.AddResidualBlock(cost, nullptr, var_h, var_m, var_t);
-        problem.SetParameterLowerBound(var_m, 0, 0.780);
-        problem.SetParameterUpperBound(var_m, 0, 1.045);
-        problem.SetParameterLowerBound(var_m, 1, 1.884);
-        problem.SetParameterUpperBound(var_m, 1, 2.000);
-    }
+using CosineMotion = MotionEquation<"Cosine", 2>;
+template<>
+template<typename T>
+T CosineMotion::operator()(const T * const var_m, const T &t) const {
+    const T &a = var_m[0];
+    const T &w = var_m[1];
+    const T b = 2.090 - a;
+    const T theta = -a/w * ceres::cos(w*t) + b*t;
+    return theta;
+}
+template<>
+const double CosineMotion::lower_bound[CosineMotion::N] = {
+    0.780, 1.884,
+};
+template<>
+const double CosineMotion::upper_bound[CosineMotion::N] = {
+    1.045, 2.000,
 };
 
-/*
- * @brief   透视变换矩阵约束条件
- * @details h0.norm() == h1.norm();
- *          h0.dot(h1) == 0;
- */
-struct PerspectiveConstraintCost {
-    template<typename T>
-    bool operator()(const T * const var_h, T * residual) const {
-        ConstMap31<T> h0(var_h);
-        ConstMap31<T> h1(var_h + 3);
-        residual[0] = h0.norm() - h1.norm();
-        residual[1] = h0.dot(h1);
-        return true;
-    }
-
-
-    static void build_problem(ceres::Problem &problem, double *var_h) {
-        auto functor = new PerspectiveConstraintCost;
-        auto cost = new ceres::AutoDiffCostFunction<PerspectiveConstraintCost, 2, 9>(functor);
-        problem.AddResidualBlock(cost, nullptr, var_h);
-    }
-};
 
 void optimizePersectiveAndMotion(const std::vector<cv::Point2d> &points,
                                  const std::vector<double> &timestamps,
-                                 double radius, 
+                                 CosineMotion func, double radius, 
                                  double *var_h, double *var_m, double *var_t,
                                  bool hold_h = false) {
-    ceres::Problem problem;
-    for(int i=0; i<(int)points.size(); i++) {
-        CosineMotionCost::build_problem(problem, radius, timestamps[i], points[i],
-                                        var_h, var_m, var_t);
-    }
-    if(hold_h) {
-        problem.SetParameterBlockConstant(var_h);
-    } else {
-        PerspectiveConstraintCost::build_problem(problem, var_h);
-    }
-    ceres::Solver::Options options;
+    MotionAndPerspectiveSolver solver{var_h};
     // 限制优化时间不超过100ms
     // 避免数据不佳时的长时间计算
-    options.max_solver_time_in_seconds = 0.1;
-    ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
+    solver.options.max_solver_time_in_seconds = 0.1;
+    // 启用多线程并行
+    solver.options.num_threads = std::thread::hardware_concurrency();
+    solver.addGroupSamples({(const double *)points.data(), 2, (int)points.size()},
+                           {timestamps.data(), 1, (int)timestamps.size()},
+                           radius, func, var_m, var_t);
+    solver.solve(hold_h);
 }
 
 // 此处偷懒，使用OpenCV的fitellipse计算椭圆中心
@@ -156,6 +106,8 @@ int main() {
     Matrix33d H_w2c, H_c2w;
     double motion_param[2] = {0.9125, 1.942};
     double phase_bias = 0;
+
+    CosineMotion motion_equation;
 
     cv::Mat img;
     for(double current_time = 0; cap.read(img); current_time += 1.0 / fps) {
@@ -215,14 +167,14 @@ int main() {
             initializePerspective(0.2, pts_un, H_w2c);
             H_c2w = H_w2c.inverse();
             // 初始化运动参数，固定透视变换不动
-            optimizePersectiveAndMotion(pts_un, timestamps, 0.2, 
+            optimizePersectiveAndMotion(pts_un, timestamps, motion_equation, 0.2, 
                     H_c2w.data(), motion_param, &phase_bias, true);
         } else if(points.size() > 80) {
             // 采样大于80点时，进行联合优化
             std::vector<cv::Point2d> pts_un;
             cv::undistortPoints(points, pts_un, K, D);
             // 同时优化透视变换和运动参数
-            optimizePersectiveAndMotion(pts_un, timestamps, 0.2, 
+            optimizePersectiveAndMotion(pts_un, timestamps, motion_equation, 0.2, 
                     H_c2w.data(), motion_param, &phase_bias, false);
             // 可视化透视变换
             cv::Mat H;
