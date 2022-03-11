@@ -183,6 +183,20 @@ int main() {
             cv::Mat im2show;
             cv::warpPerspective(img, im2show, H, {img.cols, img.rows});
             resizeShow("perspective", im2show, 0.5);
+        } else if(points.size() > 100) {
+            // 采样大于100点时，认为透视变换基本收敛，不再优化透视变换矩阵
+            std::vector<cv::Point2d> pts_un;
+            cv::undistortPoints(points, pts_un, K, D);
+            // 固定透视变换不动
+            optimizePersectiveAndMotion(pts_un, timestamps, motion_equation, 0.2, 
+                    H_c2w.data(), motion_param, &phase_bias, true);
+            // 可视化透视变换
+            cv::Mat H;
+            cv::eigen2cv(H_c2w, H);
+            H = K * H * K_inv;
+            cv::Mat im2show;
+            cv::warpPerspective(img, im2show, H, {img.cols, img.rows});
+            resizeShow("perspective", im2show, 0.5);
         } else {
             // 显示原图
             resizeShow("perspective", img, 0.5);

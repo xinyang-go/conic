@@ -16,20 +16,20 @@ namespace conic::motion {
         /*
          * @param var_h 透视变换矩阵9个参数
          * @param var_m 运动模型N个参数。由用户指定
-         * @param var_t 时间差(相位差)1个参数
+         * @param var_p 相角偏移1个参数
          * @param residual 坐标残差2个值
          */
         template<typename T>
         bool operator()(const T * const var_h, 
                         const T * const var_m, 
-                        const T * const var_t, 
+                        const T * const var_p, 
                         T * residual) const { 
             // 计算透视变换坐标
             ConstMap33<T> H(var_h);
             Matrix31<T> pt_w = H * pt_c;
             pt_w /= pt_w[2];
             // 计算运动模型角度
-            T theta = func(var_m, var_t[0] + timestamp);
+            T theta = func(var_m, (T)timestamp) + var_p[0];
             // 计算残差
             residual[0] = radius * ceres::cos(theta) - pt_w[0];
             residual[1] = radius * ceres::sin(theta) - pt_w[1];
@@ -43,10 +43,10 @@ namespace conic::motion {
 
 
         static void build_problem(ceres::Problem &problem, double r, double t, Matrix21d pt,
-                                  F func, double *var_h, double *var_m, double *var_t) {
+                                  F func, double *var_h, double *var_m, double *var_p) {
             auto cost = new ceres::AutoDiffCostFunction<MotionCost, 2, 9, F::N, 1>(
                 new MotionCost{std::move(func), r, t, {pt.x(), pt.y(), 1.0}} );
-            problem.AddResidualBlock(cost, nullptr, var_h, var_m, var_t);
+            problem.AddResidualBlock(cost, nullptr, var_h, var_m, var_p);
             for(int i=0; i<F::N; i++) {
                 problem.SetParameterLowerBound(var_m, i, F::lower_bound[i]);
                 problem.SetParameterUpperBound(var_m, i, F::upper_bound[i]);
@@ -114,7 +114,7 @@ namespace conic::motion {
     /*
      * @brief 联合优化运动参数和透视变换
      * @details 允许同时使用多组运动观测
-     *          每组运动观测可以有不同的运动方程和时间(相位)偏移
+     *          每组运动观测可以有不同的运动方程和相角偏移
      *          常用于同一圆周上有多个圆周运动的目标
      */
     struct MotionAndPerspectiveSolver {
@@ -126,14 +126,14 @@ namespace conic::motion {
          * @param r          圆周半径
          * @param func       运动方程
          * @param var_m      运动方程参数
-         * @param var_t      运动方程的时间(相位)偏移
+         * @param var_p      运动方程的相角偏移
          */
         template<typename F>
         void addGroupSamples(ConstMap2Nd points, ConstMap1Nd timestamps, double r, F &&func, 
-                             double *var_m, double *var_t) {
+                             double *var_m, double *var_p) {
             for(int i=0; i<points.cols(); i++) {
                 MotionCost<std::remove_reference_t<F>>::build_problem(problem, r, timestamps(0, i), points.col(i), 
-                        std::forward<F>(func), var_h, var_m, var_t);
+                        std::forward<F>(func), var_h, var_m, var_p);
             }
         }
 
