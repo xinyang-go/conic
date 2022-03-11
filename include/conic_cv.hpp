@@ -15,8 +15,8 @@ namespace conic {
      * @param  pt 椭圆圆周采样坐标点
      * @return 二次型表示的椭圆参数，行列式被归一化为-1
      */
-    inline Matrix33 fitEllipse(const std::vector<cv::Point2d>& pt) {
-        return fitEllipse(ConstMap2N{(const double*)pt.data(), 2, (int)pt.size()});
+    inline Matrix33d fitEllipse(const std::vector<cv::Point2d>& pt) {
+        return fitEllipse(ConstMap2Nd{(const double*)pt.data(), 2, (int)pt.size()});
     }
 
     /*
@@ -27,9 +27,9 @@ namespace conic {
      * @param   centre  在归一化像素平面上的圆心坐标
      * @return  从空间平面到归一化像素平面的透视变换矩阵
      */
-    inline Matrix33 perspectiveFromEllipseAndCentre(
-            double radius, const Matrix33& ellipse, const cv::Point2d& centre) {
-        return perspectiveFromEllipseAndCentre(radius, ellipse, Matrix21{centre.x, centre.y});
+    inline Matrix33d perspectiveFromEllipseAndCentre(
+            double radius, const Matrix33d& ellipse, const cv::Point2d& centre) {
+        return perspectiveFromEllipseAndCentre(radius, ellipse, Matrix21d{centre.x, centre.y});
     }
 
     /*
@@ -39,9 +39,9 @@ namespace conic {
      * @param  T_w2c 空间平面坐标系到相机坐标系的位姿矩阵
      * @return 该点在相机坐标系下的坐标
      */
-    inline Matrix31 pointCoordinateCamera(
-            const cv::Point2d& pt, const Matrix33 &H_c2w, const Matrix34 &T_w2c) {
-        return pointCoordinateCamera(Matrix21{pt.x, pt.y}, H_c2w, T_w2c);
+    inline Matrix31d pointCoordinateCamera(
+            const cv::Point2d& pt, const Matrix33d &H_c2w, const Matrix34d &T_w2c) {
+        return pointCoordinateCamera(Matrix21d{pt.x, pt.y}, H_c2w, T_w2c);
     }
 }
 
