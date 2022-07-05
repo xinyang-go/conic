@@ -72,18 +72,21 @@ Matrix33d conic::perspectiveFromEllipseAndCentre(
     return H;
 }
 
-Matrix34d conic::poseFromPerspective(const Matrix33d& H) {
+Matrix34d conic::poseFromPerspective(const Matrix33d& H) {    
     Matrix34d T;
-    double l = (H.col(0).norm() + H.col(1).norm()) / 2.0;
-    T.col(3) = H.col(2) / l;
+    T.col(0) = H.col(0);
+    T.col(1) = H.col(1);
     T.col(2) = H.col(0).cross(H.col(1));
-    T.col(2) /= T.col(2).norm();
-    Matrix31d x = H.col(0) + H.col(1);
-    x /= x.norm();
-    Matrix31d y = x.cross(T.col(2));
-    const double sqrt2 = std::sqrt(2);
-    T.col(0) = (x + y) / sqrt2;
-    T.col(1) = (x - y) / sqrt2;
+
+    Eigen::JacobiSVD<Matrix33d> svd(
+        T.leftCols<3>(), Eigen::ComputeFullU | Eigen::ComputeFullV);
+    const Matrix33d &U = svd.matrixU();
+    const Matrix33d &V = svd.matrixV();
+    Matrix31d S{1.0, 1.0, 1.0 / (U * V).determinant()};
+    T.leftCols<3>() = U * S.asDiagonal() * V.transpose();
+    
+    double n = (H.col(0).norm() + H.col(1).norm()) / 2.0;
+    T.col(3) = H.col(2) / n;
     return T;
 }
 
